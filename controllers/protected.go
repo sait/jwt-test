@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"net/http"
+
 	"github.com/AlanHerediaG/test-jwt/database"
 	"github.com/AlanHerediaG/test-jwt/models"
 
@@ -16,21 +18,19 @@ func Profile(c *gin.Context) {
 	result := database.GlobalDB.Where("email = ?", email.(string)).First(&user)
 
 	if result.Error == gorm.ErrRecordNotFound {
-		c.JSON(404, gin.H{
-			"msg": "user not found",
+		c.JSON(http.StatusNotFound, gin.H{
+			"msg": result.Error.Error(),
 		})
-		c.Abort()
 		return
 	}
 
 	if result.Error != nil {
-		c.JSON(500, gin.H{
-			"msg": "could not get user profile",
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"msg": result.Error.Error(),
 		})
-		c.Abort()
 		return
 	}
 
 	user.Password = ""
-	c.JSON(200, user)
+	c.JSON(http.StatusOK, user)
 }

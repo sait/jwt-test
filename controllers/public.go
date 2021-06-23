@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"log"
+	"net/http"
 
 	"github.com/AlanHerediaG/test-jwt/auth"
 	"github.com/AlanHerediaG/test-jwt/database"
@@ -16,41 +16,29 @@ func Signup(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&user)
 	if err != nil {
-		log.Println(err)
-
-		c.JSON(400, gin.H{
-			"msg": "invalid json",
+		c.JSON(http.StatusBadRequest, gin.H{
+			"msg": err.Error(),
 		})
-		c.Abort()
-
 		return
 	}
 
 	err = user.HashPassword(user.Password)
 	if err != nil {
-		log.Println(err.Error())
-
-		c.JSON(500, gin.H{
-			"msg": "error hashing password",
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": err.Error(),
 		})
-		c.Abort()
-
 		return
 	}
 
 	err = user.CreateUserRecord()
 	if err != nil {
-		log.Println(err.Error())
-
-		c.JSON(500, gin.H{
-			"msg": "error creating user",
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"msg": err.Error(),
 		})
-		c.Abort()
-
 		return
 	}
 
-	c.JSON(200, user)
+	c.JSON(http.StatusOK, user)
 }
 
 type LoginPayload struct {
@@ -68,29 +56,25 @@ func Login(c *gin.Context) {
 
 	err := c.ShouldBindJSON(&payload)
 	if err != nil {
-		c.JSON(400, gin.H{
-			"msg": "invalid json",
+		c.JSON(http.StatusBadRequest, gin.H{
+			"msg": err.Error(),
 		})
-		c.Abort()
 		return
 	}
 
 	result := database.GlobalDB.Where("email = ?", payload.Email).First(&user)
 	if result.Error == gorm.ErrRecordNotFound {
-		c.JSON(401, gin.H{
-			"msg": "invalid user credentials",
+		c.JSON(http.StatusNotFound, gin.H{
+			"msg": err.Error(),
 		})
-		c.Abort()
 		return
 	}
 
 	err = user.CheckPassword(payload.Password)
 	if err != nil {
-		log.Println(err)
-		c.JSON(401, gin.H{
-			"msg": "invalid user credentials",
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"msg": err.Error(),
 		})
-		c.Abort()
 		return
 	}
 
@@ -102,16 +86,14 @@ func Login(c *gin.Context) {
 
 	signedToken, err := jwtWrapper.GenerateToken(user.Email)
 	if err != nil {
-		log.Println(err)
-		c.JSON(500, gin.H{
-			"msg": "error signing token",
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": err.Error(),
 		})
-		c.Abort()
 		return
 	}
 
 	tokenResponse := LoginResponse{
 		Token: signedToken,
 	}
-	c.JSON(200, tokenResponse)
+	c.JSON(http.StatusOK, tokenResponse)
 }
